@@ -117,3 +117,16 @@ SFRA is the standard approach for launching a storefront on B2C Commerce Cloud. 
 - The frontend is coupled to the platform, which simplifies operations but means that UX development is resolved within the B2C Commerce ecosystem rather than with external libraries like React or Vue.
 - Development requires uploading code to remote sandboxes — there is no local runtime for the B2C Commerce script engine.
 - The server-side rendering model means page transitions involve full round-trips to the server, unlike single-page application architectures.
+
+### Official Documentation
+
+| Resource | URL |
+|----------|-----|
+| B2C Commerce Cloud Developer Docs | https://developer.salesforce.com/docs/commerce/b2c-commerce/overview |
+| SFRA Overview | https://developer.salesforce.com/docs/commerce/sfra/overview |
+| SFRA Architecture Guide | https://developer.salesforce.com/docs/commerce/sfra/guide/sfra-overview.html |
+| Cartridges | https://developer.salesforce.com/docs/commerce/b2c-commerce/guide/b2c-cartridges.html |
+| ISML Templates | https://developer.salesforce.com/docs/commerce/b2c-commerce/guide/b2c-isml.html |
+| Script API Reference (Developer Doc) | https://salesforcecommercecloud.github.io/b2c-dev-doc/ |
+| Commerce APIs (SCAPI) | https://developer.salesforce.com/docs/commerce/commerce-api/references/ |
+| SFRA GitHub Repository | https://github.com/SalesforceCommerceCloud/storefront-reference-architecture |

@@ -76,6 +76,18 @@ SFRA is deeply integrated with Business Manager, the B2C Commerce Cloud back-off
 
 Changes made in Business Manager are immediately reflected in the SFRA storefront without requiring code deployments. This tight coupling between the merchandising tool and the storefront is a defining characteristic of the SFRA model.
 
+### Page Designer
+
+Page Designer is the visual, no-code page editor built into Business Manager. It allows merchants to create, arrange, and publish pages by dragging and dropping components into regions — without writing code or requiring deployments.
+
+In the SFRA context, Page Designer works with ISML-based component types. Developers build reusable page types and component types (banners, product carousels, hero images, content blocks) using ISML templates, and merchants assemble them visually in Business Manager. The architecture follows a three-tier hierarchy:
+
+- **Pages** — top-level containers representing a full page (homepage, landing page, campaign page).
+- **Regions** — logical content areas within a page that hold an ordered list of components.
+- **Components** — the building blocks. Leaf components render content directly (images, text, product tiles). Layout components organize other components using grids or columns and can contain nested regions.
+
+Merchants can schedule page publication, preview changes in context, and manage multiple page versions — all from Business Manager without developer intervention for content updates.
+
 ### Development Workflow
 
 SFRA development relies on the following tools and processes:
@@ -308,6 +320,21 @@ Composable Storefront uses **SLAS (Shopper Login and API Access Service)** for a
 - Session bridging between the storefront and B2C Commerce
 
 This is a separate authentication layer from what SFRA uses internally, designed specifically for API-first access patterns.
+
+### Page Designer
+
+Page Designer also works with Composable Storefront, but the implementation model is different from SFRA. Instead of ISML templates, component types are built as React components that render within the PWA Kit application.
+
+Key differences from the SFRA implementation:
+
+- All Page Designer metadata files (pages, components, aspect types) must include `"arch_type": "headless"` to enable React-only rendering without ISML templates.
+- Components are lazy-loaded on demand through a component registry system, which reduces the initial bundle size — only the components used on a given page are downloaded.
+- The visual editor in Business Manager loads the actual PWA Kit storefront in an iframe, so merchants preview exactly what the live page will look like at the real route.
+- No parallel ISML implementation is needed — developers maintain React components only.
+
+The same three-tier hierarchy applies (Pages → Regions → Components), and merchants still use the drag-and-drop editor in Business Manager to assemble pages. The difference is entirely on the developer side: instead of ISML, you write React components that receive their configuration as props from Page Designer.
+
+Requirements: PWA Kit version 2.7.0 or later, and a SLAS client configured with the `sfcc.shopper-experience` scope.
 
 ### Search and Discovery Integrations
 

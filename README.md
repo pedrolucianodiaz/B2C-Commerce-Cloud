@@ -218,3 +218,271 @@ SFRA is the standard approach for launching a storefront on B2C Commerce Cloud. 
 | Script API Reference (Developer Doc) | https://salesforcecommercecloud.github.io/b2c-dev-doc/ |
 | Commerce APIs (SCAPI) | https://developer.salesforce.com/docs/commerce/commerce-api/references/ |
 | SFRA GitHub Repository | https://github.com/SalesforceCommerceCloud/storefront-reference-architecture |
+
+---
+
+## 2. PWA Kit / Composable Storefront
+
+### What is Composable Storefront
+
+Composable Storefront is Salesforce's decoupled storefront solution for B2C Commerce Cloud. It separates the frontend (presentation layer) from the commerce backend, connecting them exclusively through APIs. The term "composable" refers to the architectural approach where the storefront is assembled from independent, API-connected components rather than running as a monolithic application on the commerce server.
+
+Unlike SFRA, where templates and logic execute on the B2C Commerce application server, Composable Storefront runs on its own dedicated infrastructure (Managed Runtime) and consumes B2C Commerce services through the Shopper Commerce API (SCAPI). The commerce engine remains the same — catalogs, pricing, promotions, checkout — but the way the storefront accesses and presents that data fundamentally changes.
+
+Salesforce packages this solution as two main components:
+
+- **PWA Kit** — the development framework (React-based) for building the storefront application.
+- **Managed Runtime** — the hosting and deployment infrastructure provided by Salesforce to run the storefront at scale.
+
+### What is PWA Kit
+
+PWA Kit is an open-source development framework built on React that provides the tools, libraries, and project structure needed to build a B2C Commerce storefront as a Progressive Web Application. It is organized as a monorepo containing:
+
+- **Retail React App** — a complete reference storefront implementation with pages for product listing, product detail, cart, checkout, account management, and store locator. It serves as both a functional starting point and a demonstration of best practices.
+- **commerce-sdk-react** — a library of React hooks for interacting with B2C Commerce APIs (SCAPI). Provides typed, declarative access to products, categories, baskets, orders, promotions, and customer data.
+- **pwa-kit-dev** — development tools for local development, building, and deploying bundles.
+- **pwa-kit-runtime** — the server-side runtime that handles SSR (Server-Side Rendering) and request routing in production.
+
+The Retail React App uses Chakra UI as its component library, providing 50+ accessible UI components with a theming system based on the Styled System Theme Specification. Styling is fully customizable through theme tokens.
+
+### Architectural Model
+
+Composable Storefront follows a decoupled architecture where the frontend and backend are independent systems connected by APIs:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                      Browser                             │
+│  (React SPA with client-side navigation)                │
+└──────────────────────────┬──────────────────────────────┘
+                           │
+┌──────────────────────────▼──────────────────────────────┐
+│                  Managed Runtime                          │
+│  ┌─────────┐  ┌──────────┐  ┌────────────────────┐     │
+│  │   CDN   │  │   WAF    │  │  Node.js / Express │     │
+│  │ (Edge)  │  │          │  │  (SSR + Routing)   │     │
+│  └─────────┘  └──────────┘  └────────────────────┘     │
+└──────────────────────────┬──────────────────────────────┘
+                           │ SCAPI (REST)
+┌──────────────────────────▼──────────────────────────────┐
+│              B2C Commerce Cloud                           │
+│  (Catalog, Pricing, Promotions, Cart, Checkout, etc.)   │
+└─────────────────────────────────────────────────────────┘
+```
+
+- **Server-Side Rendering (SSR)** — the initial page load is rendered on the Node.js server within Managed Runtime, delivering a fully formed HTML page for performance and SEO. After hydration, the app transitions to a client-side single-page application (SPA) with instant navigation between pages.
+- **API-first** — all commerce data is fetched via SCAPI REST endpoints. There is no direct access to the B2C Commerce script engine or internal platform APIs from the storefront code.
+- **Proxy layer** — Managed Runtime includes a proxy server that accelerates API requests between the storefront and B2C Commerce, reducing latency by keeping connections warm and routing efficiently.
+
+### Managed Runtime
+
+Managed Runtime is the hosting infrastructure that Salesforce provides specifically for running Composable Storefront applications. It is not a generic cloud hosting service — it is purpose-built for PWA Kit projects.
+
+Key characteristics:
+
+- **CDN with edge caching** — requests are cached at the edge, close to end users, for fast page delivery.
+- **Web Application Firewall (WAF)** — protects environments from security threats automatically.
+- **Auto-scaling microservices** — environments scale up and down based on traffic without manual intervention.
+- **Multiple environments** — teams can create unlimited environments (development, staging, QA, production) at no additional cost. Environments are lightweight and can be provisioned or removed on demand.
+- **Regional deployment** — admins can configure which regions the storefront is deployed to, optimizing latency for target audiences.
+- **Bundle-based deployment** — code is packaged into bundles (max 400 MB) and deployed via Runtime Admin or the Managed Runtime API. Initial deployments take up to an hour; subsequent deployments complete in approximately one minute.
+
+### Relationship with B2C Commerce Cloud
+
+The commerce backend remains B2C Commerce Cloud — the same engine that powers SFRA. Merchants still use Business Manager to manage catalogs, pricing, promotions, and campaigns. The difference is how the storefront accesses this data:
+
+| Aspect | SFRA | Composable Storefront |
+|--------|------|----------------------|
+| Data access | Platform Script API (internal, server-side) | SCAPI (external REST API) |
+| Rendering | Server-side on B2C Commerce app server | SSR on Managed Runtime + client-side SPA |
+| Hosting | B2C Commerce infrastructure | Managed Runtime (separate) |
+| Merchandising | Business Manager → immediate reflection | Business Manager → exposed via SCAPI |
+
+Business Manager functionality is preserved — merchants manage the same commerce data. The storefront simply consumes it differently.
+
+### Authentication Model
+
+Composable Storefront uses **SLAS (Shopper Login and API Access Service)** for authentication. SLAS provides:
+
+- Guest and registered shopper token management
+- OAuth 2.0 flows for secure API access
+- Session bridging between the storefront and B2C Commerce
+
+This is a separate authentication layer from what SFRA uses internally, designed specifically for API-first access patterns.
+
+### Search and Discovery Integrations
+
+Within the Composable Storefront ecosystem, Salesforce supports integrations with specialized search providers:
+
+- **Algolia** — real-time search, faceting, and merchandising
+- **Coveo** — AI-powered search and recommendations
+- **Constructor** — product discovery and personalization
+
+These integrations work alongside B2C Commerce's native search capabilities, giving teams the option to enhance product discovery without leaving the Composable Storefront ecosystem.
+
+### Development Workflow
+
+The development experience with PWA Kit is fundamentally different from SFRA:
+
+- **Local development** — developers run the full application locally on their machine with hot module replacement. No remote sandbox uploads needed for frontend iteration.
+- **Node.js runtime** — the app runs on a standard Node.js/Express server, both locally and in production.
+- **npm ecosystem** — full access to the npm package registry for third-party libraries and tools.
+- **TypeScript support** — optional TypeScript for type safety across the codebase.
+- **Testing** — Jest and React Testing Library for unit and integration testing, Lighthouse for performance monitoring.
+- **Deployment** — bundles are pushed to Managed Runtime via CLI (`pwa-kit-dev push`) and deployed through Runtime Admin or API.
+
+The feedback loop is fast: code locally, see changes instantly, test with real API data via SCAPI, then push and deploy when ready.
+
+### Technology Stack Summary
+
+| Layer | Technology |
+|-------|-----------|
+| Runtime | Node.js / Express (on Managed Runtime) |
+| Framework | React |
+| Language | JavaScript / TypeScript |
+| UI library | Chakra UI |
+| Routing | React Router |
+| API client | commerce-sdk-react (SCAPI hooks) |
+| SSR | Server-side rendering with hydration |
+| Styling | Chakra UI theme system (Styled System) |
+| Build tools | Webpack, Babel |
+| Testing | Jest, React Testing Library, Lighthouse |
+| Deployment | pwa-kit-dev CLI → Managed Runtime |
+| Hosting | Managed Runtime (CDN + WAF + auto-scaling) |
+| Authentication | SLAS (Shopper Login and API Access Service) |
+| APIs consumed | SCAPI (Shopper Commerce API — external REST) |
+
+### Code Examples
+
+#### React Component — Product Detail Page
+
+```jsx
+import React from 'react'
+import { useProduct } from '@salesforce/commerce-sdk-react'
+import { Box, Heading, Text, Button, Stack, Image } from '@chakra-ui/react'
+
+const ProductDetail = ({ productId }) => {
+    const { data: product, isLoading } = useProduct({ parameters: { id: productId } })
+
+    if (isLoading) return <Box>Loading...</Box>
+
+    return (
+        <Box maxW="container.lg" mx="auto" p={6}>
+            <Stack direction={['column', 'row']} spacing={8}>
+                <Image
+                    src={product?.imageGroups?.[0]?.images?.[0]?.link}
+                    alt={product?.name}
+                    boxSize="400px"
+                    objectFit="cover"
+                />
+                <Stack spacing={4}>
+                    <Heading as="h1" size="lg">
+                        {product?.name}
+                    </Heading>
+                    <Text fontSize="xl" fontWeight="bold">
+                        ${product?.price}
+                    </Text>
+                    <Text>{product?.shortDescription}</Text>
+                    <Button colorScheme="blue" size="lg">
+                        Add to Cart
+                    </Button>
+                </Stack>
+            </Stack>
+        </Box>
+    )
+}
+
+export default ProductDetail
+```
+
+#### Commerce SDK React — Add to Cart Hook
+
+```jsx
+import { useShopperBasketsMutation } from '@salesforce/commerce-sdk-react'
+
+const AddToCartButton = ({ productId, quantity = 1 }) => {
+    const addItemToBasket = useShopperBasketsMutation('addItemToBasket')
+
+    const handleAddToCart = async () => {
+        await addItemToBasket.mutate({
+            parameters: { basketId: currentBasketId },
+            body: [{ productId, quantity }]
+        })
+    }
+
+    return (
+        <Button
+            onClick={handleAddToCart}
+            isLoading={addItemToBasket.isLoading}
+            colorScheme="blue"
+        >
+            Add to Cart
+        </Button>
+    )
+}
+```
+
+#### Route Configuration
+
+```jsx
+import { RouteConfig } from '@salesforce/pwa-kit-runtime/ssr/universal/components/_app-config'
+
+const routes = [
+    {
+        path: '/',
+        component: Home,
+        exact: true
+    },
+    {
+        path: '/category/:categoryId',
+        component: ProductList
+    },
+    {
+        path: '/product/:productId',
+        component: ProductDetail
+    },
+    {
+        path: '/cart',
+        component: Cart
+    },
+    {
+        path: '/checkout',
+        component: Checkout
+    }
+]
+
+export default routes
+```
+
+### When to Use Composable Storefront
+
+Composable Storefront is the second degree of implementation on B2C Commerce Cloud. It is the path for teams that want full control over the frontend experience using modern web technologies (React, Node.js) while remaining within Salesforce's managed ecosystem for hosting and deployment. The commerce engine stays the same — the difference is how you build and deliver the customer experience.
+
+### Strengths
+
+- Full control over the frontend with React and the modern JavaScript ecosystem.
+- Local development with hot reload — no remote sandbox dependency for frontend work.
+- Progressive Web App capabilities (offline support, installable, app-like experience).
+- Server-side rendering for SEO and performance, with client-side SPA navigation for instant page transitions.
+- Managed Runtime eliminates infrastructure concerns — CDN, WAF, scaling, and deployment are handled by Salesforce.
+- Access to the npm ecosystem for third-party integrations (Algolia, Coveo, Constructor, analytics, etc.).
+- Separation of frontend and backend teams — independent release cycles.
+
+### Considerations
+
+- Requires React expertise — the team needs frontend engineers comfortable with modern JavaScript/TypeScript development.
+- The commerce data is accessed exclusively via SCAPI, which may have different capabilities or latency characteristics compared to the internal Platform Script API used by SFRA.
+- Two systems to understand: the frontend application (PWA Kit) and the commerce backend (B2C Commerce + Business Manager).
+- Bundle size limits (400 MB total) require attention to asset optimization.
+
+### Official Documentation
+
+| Resource | URL |
+|----------|-----|
+| Composable Storefront Overview | https://developer.salesforce.com/docs/commerce/pwa-kit-managed-runtime/overview |
+| PWA Kit Architecture | https://developer.salesforce.com/docs/commerce/pwa-kit-managed-runtime/guide/architecture.html |
+| Getting Started | https://developer.salesforce.com/docs/commerce/pwa-kit-managed-runtime/guide/getting-started.html |
+| Retail React App | https://developer.salesforce.com/docs/commerce/pwa-kit-managed-runtime/guide/retail-react-app.html |
+| Deploying Bundles | https://developer.salesforce.com/docs/commerce/pwa-kit-managed-runtime/guide/pushing-and-deploying-bundles.html |
+| SCAPI Reference | https://developer.salesforce.com/docs/commerce/commerce-api/references/ |
+| commerce-sdk-react | https://developer.salesforce.com/docs/commerce/pwa-kit-managed-runtime/guide/commerce-sdk-react.html |
+| PWA Kit GitHub Repository | https://github.com/SalesforceCommerceCloud/pwa-kit |
